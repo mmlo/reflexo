@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reflexo - Teste de Tempo de Reacao</title>
+    
+    <!-- Google Fonts: Space Grotesk (display) + DM Sans (UI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['Space Grotesk', 'sans-serif'],
+                        ui: ['DM Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* ========== CSS Variables ========== */
+        :root {
+            --bg: #08080c;
+            --bg-secondary: #0d0d14;
+            --fg: #e8e8f0;
+            --muted: #5a5a70;
+            --accent: #00ff88;
+            --accent-glow: rgba(0, 255, 136, 0.4);
+            --warning: #ffcc00;
+            --danger: #ff3a5c;
+            --card: #111118;
+            --card-hover: #16161f;
+            --border: #1f1f2e;
+        }
+
+        /* ========== Base Styles ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ========== Background Atmosphere ========== */
+        .bg-atmosphere {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: 
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 255, 136, 0.08), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0, 180, 255, 0.05), transparent),
+                var(--bg);
+        }
+
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black, transparent);
+        }
+
+        /* ========== Typography ========== */
+        .font-display {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* ========== Game Zone ========== */
+        .game-zone {
+            width: min(90vw, 420px);
+            height: min(90vw, 420px);
+            border-radius: 50%;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        box-shadow 0.3s ease;
+            user-select: none;
+        }
+
+        .game-zone::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            transition: border-color 0.3s ease;
+        }
+
+        .game-zone:hover {
+            transform: scale(1.02);
+        }
+
+        .game-zone:active {
+            transform: scale(0.98);
+        }
+
+        /* Estado: Idle (inicial) */
+        .game-zone--idle {
+            background: linear-gradient(145deg, var(--card), var(--bg-secondary));
+            box-shadow: 
+                0 0 0 1px var(--border),
+                0 20px 40px -10px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .game-zone--idle::before {
+            border-color: var(--border);
+        }
+
+        /* Estado: Waiting (aguardando) */
+        .game-zone--waiting {
+            background: linear-gradient(145deg, #1a1520, #120d18);
+            box-shadow: 
+                0 0 0 1px rgba(255, 58, 92, 0.3),
+                0 20px 40px -10px rgba(255, 58, 92, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            animation: pulse-danger 2s ease-in-out infinite;
+        }
+
+        .game-zone--waiting::before {
+            border-color: rgba(255, 58, 92, 0.4);
+        }
+
+        /* Estado: Ready (clique agora!) */
+        .game-zone--ready {
+            background: linear-gradient(145deg, #002211, #001a0d);
+            box-shadow: 
+                0 0 60px var(--accent-glow),
+                0 0 120px rgba(0, 255, 136, 0.2),
+                0 0 0 2px var(--accent),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            animation: pulse-ready 0.4s ease-in-out infinite;
+        }
+
+        .game-zone--ready::before {
+            border-color: var(--accent);
+        }
+
+        /* Estado: Too Early (clicou cedo) */
+        .game-zone--too-early {
+            background: linear-gradient(145deg, #2a0a10, #1d0709);
+            box-shadow: 
+                0 0 40px rgba(255, 58, 92, 0.3),
+                0 0 0 2px var(--danger);
+        }
+
+        .game-zone--too-early::before {
+            border-color: var(--danger);
+        }
+
+        /* Estado: Result */
+        .game-zone--result {
+            background: linear-gradient(145deg, var(--card), var(--bg-secondary));
+            box-shadow: 
+                0 0 0 1px var(--border),
+                0 20px 40px -10px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* ========== Animations ========== */
+        @keyframes pulse-danger {
+            0%, 100% { 
+                box-shadow: 
+                    0 0 0 1px rgba(255, 58, 92, 0.3),
+                    0 20px 40px -10px rgba(255, 58, 92, 0.2);
+            }
+            50% { 
+                box-shadow: 
+                    0 0 0 1px rgba(255, 58, 92, 0.5),
+                    0 20px 60px -10px rgba(255, 58, 92, 0.35);
+            }
+        }
+
+        @keyframes pulse-ready {
+            0%, 100% { 
+                box-shadow: 
+                    0 0 60px var(--accent-glow),
+                    0 0 120px rgba(0, 255, 136, 0.2),
+                    0 0 0 2px var(--accent);
+            }
+            50% { 
+                box-shadow: 
+                    0 0 80px var(--accent-glow),
+                    0 0 150px rgba(0, 255, 136, 0.3),
+                    0 0 0 3px var(--accent);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes countUp {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        .animate-countUp {
+            animation: countUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .animate-slideUp {
+            animation: slideUp 0.5s ease-out forwards;
+        }
+
+        /* ========== Result Display ========== */
+        .result-time {
+            font-size: clamp(3rem, 12vw, 5rem);
+            font-weight: 700;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--fg), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .result-time--fast {
+            background: linear-gradient(135deg, var(--accent), #00d4ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        .result-time--average {
+            background: linear-gradient(135deg, var(--warning), #ff9500);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        .result-time--slow {
+            background: linear-gradient(135deg, var(--danger), #ff6b6b);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        /* ========== Stats Cards ========== */
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            background: var(--card-hover);
+            border-color: rgba(0, 255, 136, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* ========== History List ========== */
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: var(--card-hover);
+        }
+
+        .history-item--new {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        /* ========== Buttons ========== */
+        .btn-reset {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--muted);
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-reset:hover {
+            background: var(--card);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-reset:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* ========== Rating Badge ========== */
+        .rating-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .rating-badge--fast {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--accent);
+        }
+
+        .rating-badge--average {
+            background: rgba(255, 204, 0, 0.15);
+            color: var(--warning);
+        }
+
+        .rating-badge--slow {
+            background: rgba(255, 58, 92, 0.15);
+            color: var(--danger);
+        }
+
+        /* ========== Focus States ========== */
+        .game-zone:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 4px;
+        }
+
+        /* ========== Reduced Motion ========== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ========== Scrollbar ========== */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--muted);
+        }
+
+        /* ========== Particles ========== */
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        @keyframes particle-burst {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--tx), var(--ty)) scale(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Atmosphere -->
+    <div class="bg-atmosphere"></div>
+    <div class="bg-grid"></div>
+
+    <!-- Main Container -->
+    <main class="min-h-screen flex flex-col items-center justify-center px-4 py-8 md:py-12">
+        
+        <!-- Header -->
+        <header class="text-center mb-8 md:mb-12">
+            <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight mb-2">
+                Reflexo
+            </h1>
+            <p class="text-sm md:text-base text-[var(--muted)]">
+                Teste sua velocidade de reacao
+            </p>
+        </header>
+
+        <!-- Game Zone -->
+        <div 
+            id="gameZone" 
+            class="game-zone game-zone--idle flex flex-col items-center justify-center text-center p-8"
+            role="button"
+            tabindex="0"
+            aria-label="Area do jogo de reflexo"
+        >
+            <div id="gameContent">
+                <!-- Conteudo dinamico via JS -->
+            </div>
+        </div>
+
+        <!-- Stats Section -->
+        <section id="statsSection" class="w-full max-w-md mt-10 md:mt-12 opacity-0 translate-y-4 transition-all duration-500">
+            <div class="grid grid-cols-3 gap-3 md:gap-4">
+                <div class="stat-card text-center">
+                    <p class="text-xs text-[var(--muted)] uppercase tracking-wider mb-1">Melhor</p>
+                    <p id="bestTime" class="font-display text-xl md:text-2xl font-bold text-[var(--accent)]">---</p>
+                    <p class="text-xs text-[var(--muted)]">ms</p>
+                </div>
+                <div class="stat-card text-center">
+                    <p class="text-xs text-[var(--muted)] uppercase tracking-wider mb-1">Media</p>
+                    <p id="avgTime" class="font-display text-xl md:text-2xl font-bold">---</p>
+                    <p class="text-xs text-[var(--muted)]">ms</p>
+                </div>
+                <div class="stat-card text-center">
+                    <p class="text-xs text-[var(--muted)] uppercase tracking-wider mb-1">Tentativas</p>
+                    <p id="attempts" class="font-display text-xl md:text-2xl font-bold">0</p>
+                    <p class="text-xs text-[var(--muted)]">total</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- History Section -->
+        <section id="historySection" class="w-full max-w-md mt-6 opacity-0 translate-y-4 transition-all duration-500 delay-100">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="font-display text-sm font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Historico
+                </h2>
+                <button id="resetBtn" class="btn-reset">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                    Limpar
+                </button>
+            </div>
+            <div id="historyList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <p class="text-center text-sm text-[var(--muted)] py-4">
+                    Nenhuma tentativa ainda
+                </p>
+            </div>
+        </section>
+
+        <!-- Instructions -->
+        <footer class="mt-8 text-center">
+            <p class="text-xs text-[var(--muted)]">
+                Pressione <kbd class="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded text-[var(--fg)]">Espaco</kbd> ou clique para jogar
+            </p>
+        </footer>
+
+    </main>
+
+    <!-- Particles Container -->
+    <div id="particlesContainer" class="fixed inset-0 pointer-events-none z-50"></div>
+
+    <script>
+        // ============================================
+        // ESTADO DO JOGO
+        // ============================================
+        
+        // Objeto que mantem todo o estado do jogo
+        const gameState = {
+            currentPhase: 'idle', // idle | waiting | ready | tooEarly | result
+            startTime: 0,         // Timestamp quando o sinal verde aparece
+            reactionTime: 0,      // Tempo de reacao em ms
+            timeoutId: null,      // ID do timeout para limpar se necessario
+            results: [],          // Array com todos os resultados
+        };
+
+        // ============================================
+        // ELEMENTOS DO DOM
+        // ============================================
+        
+        const elements = {
+            gameZone: document.getElementById('gameZone'),
+            gameContent: document.getElementById('gameContent'),
+            statsSection: document.getElementById('statsSection'),
+            historySection: document.getElementById('historySection'),
+            bestTime: document.getElementById('bestTime'),
+            avgTime: document.getElementById('avgTime'),
+            attempts: document.getElementById('attempts'),
+            historyList: document.getElementById('historyList'),
+            resetBtn: document.getElementById('resetBtn'),
+            particlesContainer: document.getElementById('particlesContainer'),
+        };
+
+        // ============================================
+        // CONSTANTES
+        // ============================================
+        
+        const PHASES = {
+            IDLE: 'idle',
+            WAITING: 'waiting',
+            READY: 'ready',
+            TOO_EARLY: 'tooEarly',
+            RESULT: 'result',
+        };
+
+        const RATING = {
+            FAST: { max: 250, label: 'Incrivel', class: 'fast' },
+            AVERAGE: { max: 350, label: 'Bom', class: 'average' },
+            SLOW: { min: 350, label: 'Lento', class: 'slow' },
+        };
+
+        // ============================================
+        // FUNCOES UTILITARIAS
+        // ============================================
+        
+        /**
+         * Gera um numero aleatorio entre min e max
+         */
+        function randomBetween(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        /**
+         * Determina a classificacao do tempo de reacao
+         */
+        function getRating(time) {
+            if (time < RATING.FAST.max) {
+                return { label: RATING.FAST.label, class: RATING.FAST.class };
+            } else if (time < RATING.AVERAGE.max) {
+                return { label: RATING.AVERAGE.label, class: RATING.AVERAGE.class };
+            } else {
+                return { label: RATING.SLOW.label, class: RATING.SLOW.class };
+            }
+        }
+
+        /**
+         * Formata tempo para exibicao
+         */
+        function formatTime(time) {
+            return time.toLocaleString('pt-BR');
+        }
+
+        // ============================================
+        // RENDERIZACAO DE CONTEUDO
+        // ============================================
+        
+        /**
+         * Atualiza o conteudo da zona do jogo baseado na fase atual
+         */
+        function renderGameContent() {
+            const content = elements.gameContent;
+            
+            switch (gameState.currentPhase) {
+                case PHASES.IDLE:
+                    content.innerHTML = `
+                        <div class="animate-slideUp">
+                            <svg class="w-12 h-12 mx-auto mb-4 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                            </svg>
+                            <p class="font-display text-lg md:text-xl font-medium mb-2">
+                                Clique para iniciar
+                            </p>
+                            <p class="text-sm text-[var(--muted)]">
+                                Quando ficar verde, clique o mais rapido possivel
+                            </p>
+                        </div>
+                    `;
+                    break;
+
+                case PHASES.WAITING:
+                    content.innerHTML = `
+                        <div class="animate-slideUp">
+                            <div class="w-6 h-6 mx-auto mb-4 rounded-full bg-[var(--danger)] animate-pulse"></div>
+                            <p class="font-display text-lg md:text-xl font-medium mb-2 text-[var(--danger)]">
+                                Aguarde...
+                            </p>
+                            <p class="text-sm text-[var(--muted)]">
+                                Nao clique ainda
+                            </p>
+                        </div>
+                    `;
+                    break;
+
+                case PHASES.READY:
+                    content.innerHTML = `
+                        <div>
+                            <svg class="w-16 h-16 mx-auto mb-4 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            <p class="font-display text-2xl md:text-3xl font-bold text-[var(--accent)]">
+                                CLIQUE!
+                            </p>
+                        </div>
+                    `;
+                    break;
+
+                case PHASES.TOO_EARLY:
+                    content.innerHTML = `
+                        <div class="animate-shake">
+                            <svg class="w-12 h-12 mx-auto mb-4 text-[var(--danger)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="15" y1="9" x2="9" y2="15"/>
+                                <line x1="9" y1="9" x2="15" y2="15"/>
+                            </svg>
+                            <p class="font-display text-lg md:text-xl font-medium mb-2 text-[var(--danger)]">
+                                Muito cedo!
+                            </p>
+                            <p class="text-sm text-[var(--muted)]">
+                                Clique para tentar novamente
+                            </p>
+                        </div>
+                    `;
+                    break;
+
+                case PHASES.RESULT:
+                    const rating = getRating(gameState.reactionTime);
+                    const timeClass = `result-time--${rating.class}`;
+                    
+                    content.innerHTML = `
+                        <div class="animate-slideUp">
+                            <p class="result-time font-display ${timeClass} animate-countUp">
+                                ${gameState.reactionTime}
+                            </p>
+                            <p class="text-sm text-[var(--muted)] mt-1 mb-3">milissegundos</p>
+                            <span class="rating-badge rating-badge--${rating.class}">
+                                ${rating.label}
+                            </span>
+                            <p class="text-xs text-[var(--muted)] mt-4">
+                                Clique para jogar novamente
+                            </p>
+                        </div>
+                    `;
+                    break;
+            }
+        }
+
+        /**
+         * Atualiza a classe CSS da zona do jogo
+         */
+        function updateGameZoneClass() {
+            // Remove todas as classes de fase
+            Object.values(PHASES).forEach(phase => {
+                elements.gameZone.classList.remove(`game-zone--${phase}`);
+            });
+            
+            // Adiciona a classe da fase atual
+            elements.gameZone.classList.add(`game-zone--${gameState.currentPhase}`);
+        }
+
+        /**
+         * Atualiza os cards de estatisticas
+         */
+        function updateStats() {
+            const results = gameState.results;
+            
+            if (results.length > 0) {
+                // Melhor tempo
+                const best = Math.min(...results);
+                elements.bestTime.textContent = formatTime(best);
+                
+                // Media
+                const avg = Math.round(results.reduce((a, b) => a + b, 0) / results.length);
+                elements.avgTime.textContent = formatTime(avg);
+                
+                // Tentativas
+                elements.attempts.textContent = results.length;
+            } else {
+                elements.bestTime.textContent = '---';
+                elements.avgTime.textContent = '---';
+                elements.attempts.textContent = '0';
+            }
+        }
+
+        /**
+         * Atualiza a lista de historico
+         */
+        function updateHistory(isNew = false) {
+            const results = gameState.results;
+            
+            if (results.length === 0) {
+                elements.historyList.innerHTML = `
+                    <p class="text-center text-sm text-[var(--muted)] py-4">
+                        Nenhuma tentativa ainda
+                    </p>
+                `;
+                return;
+            }
+            
+            // Mostra os ultimos 5 resultados (mais recentes primeiro)
+            const recent = results.slice(-5).reverse();
+            
+            elements.historyList.innerHTML = recent.map((time, index) => {
+                const rating = getRating(time);
+                const isNewest = index === 0 && isNew;
+                
+                return `
+                    <div class="history-item ${isNewest ? 'history-item--new' : ''}">
+                        <div class="flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-full bg-[var(--bg)] flex items-center justify-center text-xs text-[var(--muted)]">
+                                ${results.length - index}
+                            </span>
+                            <span class="font-display font-medium">${formatTime(time)} ms</span>
+                        </div>
+                        <span class="rating-badge rating-badge--${rating.class} text-xs">
+                            ${rating.label}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * Mostra as secoes de estatisticas e historico
+         */
+        function showStatsSections() {
+            elements.statsSection.classList.remove('opacity-0', 'translate-y-4');
+            elements.historySection.classList.remove('opacity-0', 'translate-y-4');
+        }
+
+        // ============================================
+        // LOGICA DO JOGO
+        // ============================================
+        
+        /**
+         * Muda a fase do jogo
+         */
+        function setPhase(phase) {
+            gameState.currentPhase = phase;
+            updateGameZoneClass();
+            renderGameContent();
+        }
+
+        /**
+         * Inicia uma nova rodada
+         */
+        function startGame() {
+            // Limpa qualquer timeout anterior
+            if (gameState.timeoutId) {
+                clearTimeout(gameState.timeoutId);
+            }
+            
+            showStatsSections();
+            setPhase(PHASES.WAITING);
+            
+            // Tempo aleatorio entre 1.5s e 5s
+            const delay = randomBetween(1500, 5000);
+            
+            gameState.timeoutId = setTimeout(() => {
+                gameState.startTime = performance.now();
+                setPhase(PHASES.READY);
+            }, delay);
+        }
+
+        /**
+         * Processa o clique do usuario
+         */
+        function handleClick() {
+            switch (gameState.currentPhase) {
+                case PHASES.IDLE:
+                case PHASES.TOO_EARLY:
+                case PHASES.RESULT:
+                    startGame();
+                    break;
+                    
+                case PHASES.WAITING:
+                    // Clicou muito cedo
+                    if (gameState.timeoutId) {
+                        clearTimeout(gameState.timeoutId);
+                    }
+                    setPhase(PHASES.TOO_EARLY);
+                    break;
+                    
+                case PHASES.READY:
+                    // Calcula o tempo de reacao
+                    gameState.reactionTime = Math.round(performance.now() - gameState.startTime);
+                    gameState.results.push(gameState.reactionTime);
+                    
+                    setPhase(PHASES.RESULT);
+                    updateStats();
+                    updateHistory(true);
+                    
+                    // Cria efeito de particulas se for rapido
+                    if (gameState.reactionTime < RATING.FAST.max) {
+                        createParticles();
+                    }
+                    break;
+            }
+        }
+
+        /**
+         * Reseta todas as estatisticas
+         */
+        function resetStats() {
+            gameState.results = [];
+            updateStats();
+            updateHistory();
+            setPhase(PHASES.IDLE);
+        }
+
+        // ============================================
+        // EFEITOS VISUAIS
+        // ============================================
+        
+        /**
+         * Cria efeito de particulas para resultados rapidos
+         */
+        function createParticles() {
+            const container = elements.particlesContainer;
+            const colors = ['#00ff88', '#00d4ff', '#00ffcc', '#ffffff'];
+            
+            // Cria 12 particulas
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Posicao inicial no centro da tela
+                const rect = elements.gameZone.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                particle.style.left = `${centerX}px`;
+                particle.style.top = `${centerY}px`;
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Direcao aleatoria
+                const angle = (Math.PI * 2 / 12) * i;
+                const distance = randomBetween(80, 150);
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+                particle.style.animation = `particle-burst 0.6s ease-out forwards`;
+                particle.style.animationDelay = `${i * 0.02}s`;
+                
+                container.appendChild(particle);
+                
+                // Remove a particula apos a animacao
+                setTimeout(() => {
+                    particle.remove();
+                }, 800);
+            }
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        
+        /**
+         * Configura todos os event listeners
+         */
+        function setupEventListeners() {
+            // Clique na zona do jogo
+            elements.gameZone.addEventListener('click', handleClick);
+            
+            // Teclado
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' || e.code === 'Enter') {
+                    e.preventDefault();
+                    handleClick();
+                }
+            });
+            
+            // Botao de reset
+            elements.resetBtn.addEventListener('click', resetStats);
+            
+            // Focus visible para acessibilidade
+            elements.gameZone.addEventListener('focus', () => {
+                elements.gameZone.classList.add('ring-2', 'ring-[var(--accent)]', 'ring-offset-4', 'ring-offset-[var(--bg)]');
+            });
+            
+            elements.gameZone.addEventListener('blur', () => {
+                elements.gameZone.classList.remove('ring-2', 'ring-[var(--accent)]', 'ring-offset-4', 'ring-offset-[var(--bg)]');
+            });
+        }
+
+        // ============================================
+        // INICIALIZACAO
+        // ============================================
+        
+        /**
+         * Inicializa o jogo
+         */
+        function init() {
+            setupEventListeners();
+            renderGameContent();
+        }
+
+        // Inicia quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
